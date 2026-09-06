@@ -1,0 +1,9 @@
+# Rust build output (the workspace lives under rust/)
+target/
+**/*.rs.bk
+*.pdb
+
+# Captured fact dumps used with examples/parse_fixture.rs. They come from a
+# real account and must never be committed; keep them outside the repo.
+*.facts.json
+fixtures/live/

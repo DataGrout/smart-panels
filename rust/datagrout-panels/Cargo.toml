@@ -1,0 +1,20 @@
+[package]
+name = "datagrout-panels"
+description = "The DataGrout Smart Panel model: declarative UI stored as logic-cell facts, parsed into a renderer-agnostic tree."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords = ["datagrout", "prolog", "declarative-ui", "dashboard", "mcp"]
+categories = ["data-structures", "visualization"]
+readme = "../../README.md"
+
+# The core crate carries NO rendering dependency. Renderers are separate crates
+# so a consumer that only transpiles never links a GUI toolkit, and adding a
+# backend never touches this one.
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
