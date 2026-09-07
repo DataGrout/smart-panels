@@ -1,7 +1,13 @@
-# datagrout-panels
+# Smart Panels
 
 Render [DataGrout](https://datagrout.ai) **Smart Panels** — declarative UI stored
 as logic-cell facts — on any surface.
+
+```bash
+cargo add datagrout-panels            # the model
+cargo add datagrout-panels-egui       # native GUI renderer
+cargo add datagrout-panels-mcp        # MCP Apps transpiler
+```
 
 ```prolog
 panel(pipeline_dashboard, dashboard, pipeline_pulse).

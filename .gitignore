@@ -7,3 +7,6 @@ target/
 # real account and must never be committed; keep them outside the repo.
 *.facts.json
 fixtures/live/
+
+# macOS
+.DS_Store

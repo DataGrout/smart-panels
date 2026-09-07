@@ -110,7 +110,12 @@ pub fn render_panel_with_state(
 
 // ── composite ───────────────────────────────────────────────────────────────
 
-/// A dashboard is a grid of its children, each rendered as a full panel.
+/// A dashboard lays its children out in columns, each rendered as a full panel.
+///
+/// Children flow into whichever column is currently shortest, so a tall table
+/// in one column does not leave a hole under a short metric in the next — the
+/// masonry rule. Order is preserved within a column, and the first row still
+/// reads left to right.
 fn dashboard(ui: &mut Ui, panel: &Panel, state: &mut FormState) -> Vec<PanelAction> {
     if panel.children.is_empty() {
         ui.label(
@@ -123,23 +128,29 @@ fn dashboard(ui: &mut Ui, panel: &Panel, state: &mut FormState) -> Vec<PanelActi
 
     // Two columns reads well at typical side-pane widths; a wider host can
     // split children by `slot()` itself before calling here.
-    let columns = panel.prop_f64("columns_per_row").unwrap_or(2.0).max(1.0) as usize;
+    let columns = (panel.prop_f64("columns_per_row").unwrap_or(2.0).max(1.0) as usize)
+        .min(panel.children.len());
     let mut actions = Vec::new();
 
-    egui::Grid::new(format!("dgp_dash_{}_{}", panel.namespace, panel.id))
-        .num_columns(columns)
-        .spacing([16.0, 12.0])
-        .show(ui, |ui| {
-            for (i, child) in panel.children.iter().enumerate() {
-                ui.group(|ui| {
-                    ui.set_min_width(180.0);
-                    actions.extend(render_panel_with_state(ui, child, state));
-                });
-                if (i + 1) % columns == 0 {
-                    ui.end_row();
-                }
-            }
-        });
+    ui.columns(columns, |cols| {
+        for child in &panel.children {
+            // Shortest column so far takes the next child; ties go left.
+            let target = (0..columns)
+                .min_by(|a, b| {
+                    cols[*a]
+                        .min_rect()
+                        .height()
+                        .total_cmp(&cols[*b].min_rect().height())
+                })
+                .unwrap_or(0);
+            let col = &mut cols[target];
+            col.group(|ui| {
+                ui.set_min_width(180.0);
+                actions.extend(render_panel_with_state(ui, child, state));
+            });
+            col.add_space(12.0);
+        }
+    });
 
     actions
 }

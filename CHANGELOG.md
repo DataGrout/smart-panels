@@ -5,15 +5,17 @@ All notable changes to `datagrout-panels` are recorded here. The project follows
 the compatibility surface, and the Rust crates are the reference implementation
 other languages port.
 
-## [Unreleased]
+## 0.1.0 — 2026-09-07
 
-### 0.1.0 — first release
-
-Three crates:
+First release. Three crates:
 
 - **`datagrout-panels`** — the model. Parses `_panels` facts (or a
   `smart_panel.list` response) into a `Panel` tree. No rendering dependency.
-- **`datagrout-panels-egui`** — an immediate-mode renderer.
+- **`datagrout-panels-egui`** — an immediate-mode renderer. Dashboards lay
+  children out masonry-style — each child goes to the currently shortest
+  column — so a tall table does not leave a hole under a short metric beside
+  it; `columns_per_row` sets the column count and order is kept within a
+  column.
 - **`datagrout-panels-mcp`** — a transpiler to MCP Apps (SEP-1865) `ui://`
   resources.
 
