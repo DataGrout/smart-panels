@@ -10,7 +10,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords = ["datagrout", "mcp", "mcp-apps", "ui", "transpiler"]
 categories = ["web-programming", "visualization"]
-readme = "../../README.md"
+readme = "README.md"
 
 [dependencies]
 datagrout-panels = { workspace = true }

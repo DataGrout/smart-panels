@@ -10,7 +10,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords = ["datagrout", "prolog", "declarative-ui", "dashboard", "mcp"]
 categories = ["data-structures", "visualization"]
-readme = "../../README.md"
+readme = "README.md"
 
 # The core crate carries NO rendering dependency. Renderers are separate crates
 # so a consumer that only transpiles never links a GUI toolkit, and adding a

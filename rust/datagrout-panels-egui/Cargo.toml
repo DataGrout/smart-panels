@@ -10,7 +10,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords = ["datagrout", "egui", "dashboard", "immediate-mode", "renderer"]
 categories = ["gui", "visualization"]
-readme = "../../README.md"
+readme = "README.md"
 
 [dependencies]
 datagrout-panels = { workspace = true }

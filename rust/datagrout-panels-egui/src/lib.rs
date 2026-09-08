@@ -195,10 +195,10 @@ fn gauge(ui: &mut Ui, panel: &Panel) {
 
     let (rect, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 10.0), Sense::hover());
     let painter = ui.painter();
-    painter.rect_filled(rect, 3.0, ui.visuals().extreme_bg_color);
+    painter.rect_filled(rect, 3.0_f32, ui.visuals().extreme_bg_color);
     let mut filled = rect;
     filled.set_width(rect.width() * frac);
-    painter.rect_filled(filled, 3.0, accent(ui));
+    painter.rect_filled(filled, 3.0_f32, accent(ui));
 
     ui.label(RichText::new(format!("{min} – {max}")).weak().small());
 }
@@ -275,7 +275,7 @@ fn line_chart(ui: &mut Ui, panel: &Panel) {
         })
         .collect();
 
-    painter.add(egui::Shape::line(points, Stroke::new(1.5, accent(ui))));
+    painter.add(egui::Shape::line(points, Stroke::new(1.5_f32, accent(ui))));
     ui.label(
         RichText::new(format!("{} pts · {min:.3} … {max:.3}", values.len()))
             .weak()
@@ -307,7 +307,7 @@ fn bar_chart(ui: &mut Ui, panel: &Panel) {
             egui::pos2(rect.left() + i as f32 * bw, rect.bottom() - h),
             Vec2::new((bw - 2.0).max(1.0), h),
         );
-        painter.rect_filled(bar, 1.0, accent(ui));
+        painter.rect_filled(bar, 1.0_f32, accent(ui));
     }
 }
 
@@ -342,7 +342,7 @@ fn heatmap(ui: &mut Ui, panel: &Panel) {
                 egui::pos2(rect.left() + c as f32 * cell, rect.top() + r as f32 * cell),
                 Vec2::splat(cell),
             );
-            painter.rect_filled(px, 0.0, intensity(t));
+            painter.rect_filled(px, 0.0_f32, intensity(t));
         }
     }
 }
