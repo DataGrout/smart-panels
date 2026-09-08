@@ -1,5 +1,9 @@
 # datagrout-panels
 
+[![crates.io](https://img.shields.io/crates/v/datagrout-panels.svg)](https://crates.io/crates/datagrout-panels)
+[![docs.rs](https://img.shields.io/docsrs/datagrout-panels)](https://docs.rs/datagrout-panels)
+[![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+
 The [DataGrout](https://datagrout.ai) **Smart Panel** model: declarative UI
 stored as logic-cell facts, parsed into a renderer-agnostic `Panel` tree.
 
@@ -20,6 +24,43 @@ This crate parses those facts and stops. Rendering lives in separate crates —
 (native GUI) and
 [`datagrout-panels-mcp`](https://crates.io/crates/datagrout-panels-mcp)
 (MCP Apps) — so a consumer that only transpiles never links a GUI toolkit.
+
+## Where panels come from
+
+**This crate renders nothing and fetches nothing; it also does not create
+panels.** A Smart Panel is created on DataGrout by calling the gateway's
+`smart_panel.publish` tool with an id, a kind, an owning namespace, and
+whatever props, rows or backing query it needs. A dashboard is published as
+`kind: "dashboard"` with each child naming it in `props.parent`; a form is
+published as `kind: "form"` with a `fields` array.
+
+The resulting facts live in the `_panels` namespace of a logic cell, and a cell
+is scoped to one account **and one hub server** — so the panels you can read
+are those published through the server you connected to.
+
+Reading them back is a single `smart_panel.list` call, whose response is what
+[`Panel::all_from_list`] parses. **There is no transport here**: bring an MCP
+client such as [conduit-sdk](https://github.com/DataGrout/conduit-sdk), or any
+MCP-speaking host, and hand the response over.
+
+No account yet? The parser takes plain JSON, so a hand-written list response
+renders like a real one:
+
+```rust
+use datagrout_panels::Panel;
+use serde_json::json;
+
+let panels = Panel::all_from_list(&json!({
+    "panels": [{
+        "id": "revenue", "kind": "bar_chart", "namespace": "demo",
+        "props": { "title": "Revenue by Month", "columns": ["Month", "Amount"] },
+        "data_preview": [["Jan", 12500], ["Feb", 18300], ["Mar", 21100]]
+    }]
+}));
+
+assert_eq!(panels[0].title(), "Revenue by Month");
+assert_eq!(panels[0].rows.len(), 3);
+```
 
 ## Two ways in
 

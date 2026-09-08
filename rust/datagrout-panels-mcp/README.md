@@ -1,5 +1,9 @@
 # datagrout-panels-mcp
 
+[![crates.io](https://img.shields.io/crates/v/datagrout-panels-mcp.svg)](https://crates.io/crates/datagrout-panels-mcp)
+[![docs.rs](https://img.shields.io/docsrs/datagrout-panels-mcp)](https://docs.rs/datagrout-panels-mcp)
+[![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+
 Transpile [DataGrout](https://datagrout.ai) Smart Panels into
 **MCP Apps** ([SEP-1865]) `ui://` resources.
 
@@ -35,6 +39,16 @@ let body = resource.to_resource_json();
 // And tag the tool whose result carries the rows, so the host opens the view:
 let meta = tool_meta(&resource.uri, /* visible_to_model */ true);
 ```
+
+## Where the panel comes from
+
+A Smart Panel is created on DataGrout by publishing it with the gateway's
+`smart_panel.publish` tool; the definition becomes Prolog facts in the
+`_panels` namespace of a logic cell, scoped to one account and one hub server.
+Reading them back is one `smart_panel.list` call, and
+[`datagrout-panels`](https://crates.io/crates/datagrout-panels) parses that
+response into the `Panel` values this crate transpiles. A `Panel` built by hand
+works just as well, which is how this crate's own tests run.
 
 ## Delivering rows
 

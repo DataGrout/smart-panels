@@ -5,6 +5,19 @@ All notable changes to `datagrout-panels` are recorded here. The project follows
 the compatibility surface, and the Rust crates are the reference implementation
 other languages port.
 
+## 0.1.1 — 2026-09-08
+
+Documentation only; no API or behaviour change.
+
+- Each crate explains **where panels come from**: they are created on DataGrout
+  with `smart_panel.publish`, stored as facts in the `_panels` namespace of a
+  logic cell scoped to one account and one hub server, and read back with
+  `smart_panel.list`. None of these crates create, fetch or transport panels,
+  and 0.1.0 never said so.
+- A copy-pasteable list response, verified as a doctest, so the renderers can
+  be tried without a DataGrout account.
+- crates.io, docs.rs and CI badges.
+
 ## 0.1.0 — 2026-09-07
 
 First release. Three crates:

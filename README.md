@@ -1,5 +1,9 @@
 # Smart Panels
 
+[![CI](https://github.com/DataGrout/smart-panels/actions/workflows/ci.yml/badge.svg)](https://github.com/DataGrout/smart-panels/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/datagrout-panels.svg?label=datagrout-panels)](https://crates.io/crates/datagrout-panels)
+[![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+
 Render [DataGrout](https://datagrout.ai) **Smart Panels** — declarative UI stored
 as logic-cell facts — on any surface.
 
@@ -22,18 +26,78 @@ A panel is not a JSON blob and not a template. It is knowledge in a logic cell:
 queryable, composable, versioned, and **derived** — its `panel_source` goal
 re-runs against the rulebase every time the panel is read.
 
+## Where panels come from
+
+**These crates render panels; they do not create them.** A Smart Panel is
+created on DataGrout by calling the gateway's `smart_panel.publish` tool, which
+compiles the definition into the facts above:
+
+```json
+{
+  "id": "revenue_chart",
+  "kind": "bar_chart",
+  "namespace": "my-app",
+  "props": { "title": "Revenue by Month" },
+  "source": { "namespace": "my-app", "query": "monthly_revenue(Month, Amt)" }
+}
+```
+
+Those facts live in the `_panels` namespace of a **logic cell**, and a cell is
+scoped to one account *and one hub server* — so panels published through one
+server are not visible through another, and which panels you see depends on
+which server you connected to. Within `_panels`, every panel also declares an
+owning `namespace` (`my-app` above) that groups it with its siblings.
+
+Two composite shapes are worth knowing:
+
+- a **dashboard** is published as `kind: "dashboard"`, and each child is
+  published separately with `props.parent` naming it;
+- a **form** is published as `kind: "form"` with a `fields` array, each field a
+  mini-panel that may declare `inputs`, a `trigger` and an `emit`.
+
+Anything that speaks MCP can publish: an agent handed the tool, your own code
+through an MCP client such as
+[conduit-sdk](https://github.com/DataGrout/conduit-sdk), or the Smart Panels
+page in the DataGrout web app. Reading them back is a single
+`smart_panel.list` call, and that response is exactly what
+`Panel::all_from_list` parses.
+
+**Neither the model nor the renderers have a transport.** You bring the MCP
+client; these crates turn what it returned into something on screen.
+
+### Trying it without an account
+
+The parser takes plain JSON, so a hand-written list response renders like a
+real one — useful for tests, examples, and seeing the renderers work before you
+have panels of your own:
+
+```rust
+use datagrout_panels::Panel;
+use serde_json::json;
+
+let panels = Panel::all_from_list(&json!({
+    "panels": [{
+        "id": "revenue", "kind": "bar_chart", "namespace": "demo",
+        "props": { "title": "Revenue by Month", "columns": ["Month", "Amount"] },
+        "data_preview": [["Jan", 12500], ["Feb", 18300], ["Mar", 21100]]
+    }]
+}));
+
+assert_eq!(panels[0].title(), "Revenue by Month");
+```
+
 ## One model, many surfaces
 
 The model crate parses facts into a renderer-agnostic tree and stops. Renderers
 are separate, so a consumer that only transpiles never links a GUI toolkit, and
 adding a backend never touches the model.
 
-| crate | surface | status |
-|---|---|---|
-| `datagrout-panels` | the model — facts → `Panel` tree | ✅ |
-| `datagrout-panels-egui` | native immediate-mode GUI | ✅ |
-| `datagrout-panels-mcp` | MCP Apps (SEP-1865) `ui://` resources | ✅ |
-| `datagrout-panels-tui` | terminal, via ratatui | planned |
+| crate | surface | version | docs |
+|---|---|---|---|
+| [`datagrout-panels`](rust/datagrout-panels) | the model — facts → `Panel` tree | [![crates.io](https://img.shields.io/crates/v/datagrout-panels.svg)](https://crates.io/crates/datagrout-panels) | [![docs.rs](https://img.shields.io/docsrs/datagrout-panels)](https://docs.rs/datagrout-panels) |
+| [`datagrout-panels-egui`](rust/datagrout-panels-egui) | native immediate-mode GUI | [![crates.io](https://img.shields.io/crates/v/datagrout-panels-egui.svg)](https://crates.io/crates/datagrout-panels-egui) | [![docs.rs](https://img.shields.io/docsrs/datagrout-panels-egui)](https://docs.rs/datagrout-panels-egui) |
+| [`datagrout-panels-mcp`](rust/datagrout-panels-mcp) | MCP Apps (SEP-1865) `ui://` resources | [![crates.io](https://img.shields.io/crates/v/datagrout-panels-mcp.svg)](https://crates.io/crates/datagrout-panels-mcp) | [![docs.rs](https://img.shields.io/docsrs/datagrout-panels-mcp)](https://docs.rs/datagrout-panels-mcp) |
+| `datagrout-panels-tui` | terminal, via ratatui | planned | |
 
 ### Why immediate mode is the natural fit
 

@@ -16,6 +16,14 @@
 //! it, so the *caller* decides what a submit means. This crate has no transport
 //! and must not grow one.
 //!
+//! # Where the panels come from
+//!
+//! Panels are published to DataGrout with the gateway's `smart_panel.publish`
+//! tool and read back with `smart_panel.list`; that response becomes `Panel`
+//! values via [`datagrout_panels::Panel::all_from_list`]. Bring your own MCP
+//! client — neither crate has a transport. A hand-written list response works
+//! too, which is the quickest way to see this renderer draw something.
+//!
 //! ```no_run
 //! use datagrout_panels::Panel;
 //! use datagrout_panels_egui::render_panel;

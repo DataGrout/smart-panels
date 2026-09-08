@@ -12,6 +12,11 @@ documentation and the wire disagreed, the wire won and is recorded below.
 Panels live as Prolog facts in the `_panels` namespace of a DataGrout logic
 cell. Publishing is `smart_panel.publish`.
 
+A cell is scoped to one account **and one hub server**, so the panels a caller
+can see are those published through the server it is connected to. `_panels` is
+a fixed system namespace; the `Namespace` in the facts below is the panel's own
+owning namespace, a grouping label chosen by the publisher.
+
 ```prolog
 panel(Id, Kind, Namespace).
 panel_prop(Id, Key, Value).

@@ -29,6 +29,13 @@
 //! * a dashboard: `structuredContent.panels`, an object keyed by child panel
 //!   id, each value a rows array.
 //!
+//! # Where the panel comes from
+//!
+//! Panels are published to DataGrout with the gateway's `smart_panel.publish`
+//! tool and read back with `smart_panel.list`; that response becomes `Panel`
+//! values via [`datagrout_panels::Panel::all_from_list`]. A `Panel` built by
+//! hand transpiles identically, which is how the tests here run.
+//!
 //! # What this crate does and does not do
 //!
 //! It emits documents and metadata. It does **not** serve them, register them,

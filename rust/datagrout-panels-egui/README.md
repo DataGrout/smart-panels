@@ -1,5 +1,9 @@
 # datagrout-panels-egui
 
+[![crates.io](https://img.shields.io/crates/v/datagrout-panels-egui.svg)](https://crates.io/crates/datagrout-panels-egui)
+[![docs.rs](https://img.shields.io/docsrs/datagrout-panels-egui)](https://docs.rs/datagrout-panels-egui)
+[![license](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+
 Render [DataGrout](https://datagrout.ai) Smart Panels natively with
 [egui](https://github.com/emilk/egui).
 
@@ -22,6 +26,22 @@ egui::CentralPanel::default().show(ctx, |ui| {
     }
 });
 ```
+
+## Where `list_response` comes from
+
+A Smart Panel is created on DataGrout by publishing it with the gateway's
+`smart_panel.publish` tool; the definition becomes Prolog facts in the
+`_panels` namespace of a logic cell, scoped to one account and one hub server.
+Reading them back is one `smart_panel.list` call, and that response is what
+[`datagrout-panels`](https://crates.io/crates/datagrout-panels) parses into the
+`Panel` values this crate draws.
+
+Neither crate has a transport, so you bring the MCP client — for example
+[conduit-sdk](https://github.com/DataGrout/conduit-sdk). To see the renderers
+work before you have panels of your own, hand `Panel::all_from_list` a
+hand-written list response; the
+[model crate's README](https://crates.io/crates/datagrout-panels) has a
+copy-pasteable one.
 
 ## Why immediate mode fits
 

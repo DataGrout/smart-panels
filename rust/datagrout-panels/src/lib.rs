@@ -27,6 +27,21 @@
 //! Keeping the model renderer-free is what makes that possible, and it means a
 //! consumer that only transpiles never links a GUI toolkit.
 //!
+//! # Where panels come from
+//!
+//! This crate does not create panels and does not fetch them. A Smart Panel is
+//! created on DataGrout by calling the gateway's `smart_panel.publish` tool
+//! with an id, a kind, an owning namespace, and whatever props, rows or backing
+//! query it needs; a dashboard is published as `kind: "dashboard"` with each
+//! child naming it in `props.parent`, and a form as `kind: "form"` with a
+//! `fields` array.
+//!
+//! The resulting facts live in the `_panels` namespace of a logic cell, and a
+//! cell is scoped to one account **and one hub server** — so the panels a
+//! caller can read are those published through the server it connected to.
+//! Reading them back is a single `smart_panel.list` call, and its response is
+//! what [`Panel::all_from_list`] takes. Bring your own MCP client.
+//!
 //! # Two ways in
 //!
 //! * [`Panel::all_from_list`] — feed it a `smart_panel.list` response. The
@@ -37,15 +52,24 @@
 //! Nothing here fetches. See [`facts`] for the fetch-layer facts a caller has
 //! to know — undefined predicates, result paging, duplicate registrations.
 //!
-//! ```no_run
-//! use datagrout_panels::Panel;
+//! A hand-written list response parses like a real one, which is how to see a
+//! renderer work before you have panels of your own:
 //!
-//! # fn demo(list_response: serde_json::Value) {
-//! let panels = Panel::all_from_list(&list_response);
-//! for panel in &panels {
-//!     println!("{} ({}) — {} children", panel.title(), panel.kind.as_str(), panel.children.len());
-//! }
-//! # }
+//! ```
+//! use datagrout_panels::Panel;
+//! use serde_json::json;
+//!
+//! let panels = Panel::all_from_list(&json!({
+//!     "panels": [{
+//!         "id": "revenue", "kind": "bar_chart", "namespace": "demo",
+//!         "props": { "title": "Revenue by Month", "columns": ["Month", "Amount"] },
+//!         "data_preview": [["Jan", 12500], ["Feb", 18300], ["Mar", 21100]]
+//!     }]
+//! }));
+//!
+//! assert_eq!(panels[0].title(), "Revenue by Month");
+//! assert_eq!(panels[0].columns(), ["Month", "Amount"]);
+//! assert_eq!(panels[0].rows.len(), 3);
 //! ```
 
 #![forbid(unsafe_code)]
