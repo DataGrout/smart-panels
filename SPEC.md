@@ -180,12 +180,25 @@ untrusted input:
 
 ## 9. Interaction
 
-Renderers report viewer interaction; they do not act on it. Dispatching a
-field's goal requires a transport, and the model layer has none. The two events:
+Renderers report viewer interaction; they do not act on it. The model layer has
+no transport — and the logic does not belong in the client regardless. The two
+events:
 
 - **Submit** — a button fired or a form was submitted.
-- **ValueChanged** — a field's value changed; the host cascades to dependents
-  via `field_input` edges.
+- **ValueChanged** — a field's value changed; dependents are found through
+  `field_input` edges.
+
+**Where a submission goes is the host's decision; what it does is defined in
+the cell.** On DataGrout a submit runs the panel's goal server-side under the
+cell's sandbox, with a bounded timeout and row limit. Fields bind one of two
+ways: to the `+` inputs of a rule published with `reactor.expose`, whose mode
+contract (`+in:type, -out:type`) shapes the outputs; or into the `panel_source`
+goal directly, matching field ids to the goal's Prolog variables and collecting
+unbound variables as outputs. A rule body may itself call tools, so a field can
+invoke a skill or workflow with nothing in between.
+
+A port therefore implements no cascade logic of its own. Surfacing the edges,
+the triggers, the emits and these two events is the whole obligation.
 
 ## 10. Renderer conformance
 

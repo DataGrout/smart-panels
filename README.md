@@ -134,10 +134,26 @@ call something with it, and replace its own contents with the result:
 }
 ```
 
-Driving that graph is the host's job: these crates surface the edges, triggers
-and emits, and hand interactions back to the caller rather than dispatching
-them (a renderer with a transport would be a renderer that can only work one
-way).
+Driving that graph is not client-side work. On DataGrout, submitting a form runs
+the panel's goal **in the cell**: if the goal's functor is a rule published with
+`reactor.expose`, the fields bind to that rule's declared `+` inputs and its `-`
+outputs come back shaped by the contract; otherwise the fields bind into the
+`panel_source` goal itself, matching field ids to the goal's Prolog variables
+and collecting the unbound ones as outputs. Either way it runs under the cell's
+sandbox with a bounded timeout, and a rule body may call tools — so a field can
+invoke a skill or workflow with no application code in between.
+
+What a renderer does is collect values and hand the interaction back. These
+crates return `PanelAction`s rather than dispatching them because *where* to
+submit is the host's choice, even though *what runs* is already defined in the
+cell.
+
+**The same rule can also be an HTTP endpoint.** `reactor.expose` publishes an
+LC rule with a mode contract — `+invoice:atom, -result:list`, where `+` binds
+from the request and `-` is returned — and DataGrout then serves it as JSON
+*and* as the backing for a panel form, from one definition inside one sandbox.
+Facts supplied with a request are asserted ephemerally (assert under a unique
+tag, query, retract), so submitted data is not retained between calls.
 
 And since the definitions are facts, they are queryable and auditable like
 anything else in the cell — `logic.query` can ask which panels exist, which are

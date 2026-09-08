@@ -45,6 +45,9 @@ definitions are themselves facts, an agent holding `smart_panel.publish` can
 build a dashboard as an outcome of its reasoning, and `logic.query` can audit
 what exists. Form fields go further — they declare dependencies, triggers and
 emits, and a field's goal can invoke a tool and replace the field's own value.
+That cascade runs in the cell, not in the client: on submit, DataGrout binds the
+fields into the panel's goal (or into the `+` inputs of a rule published with
+`reactor.expose`) and runs it under the cell's sandbox.
 
 This crate turns those facts into something a renderer can walk.
 

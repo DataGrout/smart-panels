@@ -48,6 +48,6 @@ jobs:
         run: |
           # The pattern itself lives in this file, so the workflow directory is
           # excluded from its own scan.
-          if grep -rniE "lib/data_grout|/Users/" --include="*.rs" --include="*.md" --include="*.toml" --exclude-dir=.github --exclude-dir=target . ; then
+          if grep -rniE "lib/data_grout|/Users/|manifold|agentsmith|elastic-2|governor|warden" --include="*.rs" --include="*.md" --include="*.toml" --exclude-dir=.github --exclude-dir=target . ; then
             echo "internal path reference found"; exit 1
           fi

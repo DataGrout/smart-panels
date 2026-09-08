@@ -28,8 +28,10 @@
 //! dashboard as an outcome of its reasoning, and `logic.query` can audit what
 //! exists. Form fields carry dependency edges, triggers and emits, and a
 //! field's goal may invoke a tool and replace the field's own value — a small
-//! dataflow graph, whose dispatch belongs to the host rather than to a
-//! renderer.
+//! dataflow graph that runs *in the cell*: on submit, DataGrout binds the
+//! fields into the panel's goal (or into the `+` inputs of a rule published
+//! with `reactor.expose`) and evaluates it under the cell's sandbox. A host
+//! chooses where to submit; it does not implement the cascade.
 //!
 //! # This crate is the model, not a renderer
 //!
