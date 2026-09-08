@@ -5,9 +5,25 @@ All notable changes to `datagrout-panels` are recorded here. The project follows
 the compatibility surface, and the Rust crates are the reference implementation
 other languages port.
 
-## 0.1.1 — 2026-09-08
+## 0.2.0 — 2026-09-08
 
-One additive API; otherwise documentation.
+Types the form-interaction vocabularies, adds a submission helper, and says
+what a Smart Panel actually is. 0.1.1 was prepared and never published; its
+contents are folded in here.
+
+### Breaking
+
+- `FieldTrigger`'s fields and `FieldEmit` are now typed enums rather than
+  strings: `TriggerType` (`Once`, `Repeat`, `OnEvent`, `Asap`, `Always`,
+  `Auto`), `TriggerEvent` (`Submit`, `Change`, `Focus`, `Manual`) and
+  `FieldEmit` (`Replacement`, `Trigger`, `Redirection`, `Event`). Each follows
+  `PanelKind`: a total `parse`, an `as_str` back to the wire name, `FromStr`,
+  and an `Unknown(String)` case so a vocabulary this crate predates survives
+  the round trip instead of being dropped. Kinds were already typed this way;
+  triggers and emits being bare strings meant a host matched `"on_event"` by
+  hand and got no compiler help.
+- `FieldEmit` was a newtype (`FieldEmit(pub String)`); read it with `as_str`
+  or match the enum.
 
 ### Added
 
@@ -15,6 +31,12 @@ One additive API; otherwise documentation.
   `{field_id => value}` map a DataGrout form submit expects, with untouched
   fields contributing their declared defaults and buttons excluded. A host had
   to know that `FormState` keys by bare field id and assemble this itself.
+- `FieldTrigger::fires_on(&TriggerEvent)` and `Field::fires_on(&TriggerEvent)`
+  — whether a field asks to fire on an event. Cadence (`Once` versus
+  `Always`) stays the host's obligation, since only the host knows what has
+  already run.
+
+### Documentation
 
 - Each crate explains **where panels come from**: they are created on DataGrout
   with `smart_panel.publish`, stored as facts in the `_panels` namespace of a

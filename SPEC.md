@@ -37,6 +37,12 @@ field_emit(FieldId, EmitType).
 | `field_trigger/3` | when the field fires. Type: `once \| repeat \| on_event \| asap \| always \| auto`. Event: `submit \| change \| focus \| manual` |
 | `field_emit/2` | what happens with the output: `replacement \| trigger \| redirection \| event` |
 
+Those three vocabularies are closed the way kinds are (§2), and an
+implementation types them the same way: a total parse, the wire name back, and
+an `Unknown` case so a value this port predates is carried through rather than
+dropped. The **type** is a cadence the host owes — `once` means at most one run
+— while the **event** is what fires the field.
+
 **Identity is `(Namespace, Id)`.** Republishing can leave several identical
 `panel/3` rows for the same panel; implementations collapse them. Props, data and
 source facts carry no namespace and are keyed by `Id` alone, so an id reused

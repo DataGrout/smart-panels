@@ -194,20 +194,170 @@ impl PanelKind {
     }
 }
 
+/// How often a field's goal may run — the second argument of
+/// `field_trigger(FieldId, TriggerType, Event)`.
+///
+/// The cadence is the *host's* obligation, not the renderer's: `Once` means at
+/// most one run per form, `Repeat` and `Always` mean every occurrence, and
+/// `Auto` leaves it to the host's own policy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerType {
+    Once,
+    Repeat,
+    OnEvent,
+    Asap,
+    Always,
+    Auto,
+    /// A cadence this crate predates. Carried through rather than dropped.
+    Unknown(String),
+}
+
+impl std::str::FromStr for TriggerType {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::parse(s))
+    }
+}
+
+impl TriggerType {
+    /// Parse a wire name such as `"on_event"`. Total: an unrecognized name
+    /// becomes [`TriggerType::Unknown`].
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "once" => Self::Once,
+            "repeat" => Self::Repeat,
+            "on_event" => Self::OnEvent,
+            "asap" => Self::Asap,
+            "always" => Self::Always,
+            "auto" => Self::Auto,
+            other => Self::Unknown(other.to_string()),
+        }
+    }
+
+    /// The wire name, e.g. `"on_event"`.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Once => "once",
+            Self::Repeat => "repeat",
+            Self::OnEvent => "on_event",
+            Self::Asap => "asap",
+            Self::Always => "always",
+            Self::Auto => "auto",
+            Self::Unknown(s) => s,
+        }
+    }
+}
+
+/// What fires a field's goal — the third argument of `field_trigger/3`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerEvent {
+    Submit,
+    Change,
+    Focus,
+    Manual,
+    /// An event this crate predates.
+    Unknown(String),
+}
+
+impl std::str::FromStr for TriggerEvent {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::parse(s))
+    }
+}
+
+impl TriggerEvent {
+    /// Parse a wire name such as `"change"`. Total: an unrecognized name
+    /// becomes [`TriggerEvent::Unknown`].
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "submit" => Self::Submit,
+            "change" => Self::Change,
+            "focus" => Self::Focus,
+            "manual" => Self::Manual,
+            other => Self::Unknown(other.to_string()),
+        }
+    }
+
+    /// The wire name, e.g. `"change"`.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Submit => "submit",
+            Self::Change => "change",
+            Self::Focus => "focus",
+            Self::Manual => "manual",
+            Self::Unknown(s) => s,
+        }
+    }
+}
+
 /// When a form field fires. From `field_trigger(FieldId, TriggerType, Event)`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FieldTrigger {
-    /// `once | repeat | on_event | asap | always | auto`
-    pub trigger_type: String,
-    /// `submit | change | focus | manual`
-    pub event: String,
+    pub trigger_type: TriggerType,
+    pub event: TriggerEvent,
+}
+
+impl FieldTrigger {
+    /// Whether this trigger names `event` as what fires it.
+    ///
+    /// Says nothing about the cadence — a `Once` trigger that fires on
+    /// `Change` still answers `true` here, and honouring "once" is the host's
+    /// job, since only the host knows what has already run.
+    pub fn fires_on(&self, event: &TriggerEvent) -> bool {
+        &self.event == event
+    }
 }
 
 /// What happens with a field's output. From `field_emit(FieldId, EmitType)`.
-///
-/// `replacement | trigger | redirection | event`
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FieldEmit(pub String);
+pub enum FieldEmit {
+    /// The output replaces the field's own value.
+    Replacement,
+    /// The output fires dependent fields.
+    Trigger,
+    /// The output is a destination to send the viewer to.
+    Redirection,
+    /// The output is an event for the host to route.
+    Event,
+    /// An emit kind this crate predates.
+    Unknown(String),
+}
+
+impl std::str::FromStr for FieldEmit {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::parse(s))
+    }
+}
+
+impl FieldEmit {
+    /// Parse a wire name such as `"replacement"`. Total: an unrecognized name
+    /// becomes [`FieldEmit::Unknown`].
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "replacement" => Self::Replacement,
+            "trigger" => Self::Trigger,
+            "redirection" => Self::Redirection,
+            "event" => Self::Event,
+            other => Self::Unknown(other.to_string()),
+        }
+    }
+
+    /// The wire name, e.g. `"replacement"`.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Replacement => "replacement",
+            Self::Trigger => "trigger",
+            Self::Redirection => "redirection",
+            Self::Event => "event",
+            Self::Unknown(s) => s,
+        }
+    }
+}
 
 /// A live query backing — `panel_source(Id, SourceNamespace, PrologQuery)`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -315,6 +465,17 @@ impl Field {
     /// Default value, if the field declares one.
     pub fn default_value(&self) -> Option<String> {
         prop_str(&self.props, "default")
+    }
+
+    /// Whether this field asks to fire its goal on `event`.
+    ///
+    /// A field with no `field_trigger` fact declares no cadence of its own, so
+    /// this is `false` for it: its value travels with the form's submit rather
+    /// than firing anything independently.
+    pub fn fires_on(&self, event: &TriggerEvent) -> bool {
+        self.trigger
+            .as_ref()
+            .is_some_and(|trigger| trigger.fires_on(event))
     }
 }
 

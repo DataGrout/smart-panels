@@ -152,6 +152,12 @@ let panels = Panel::all_from_facts(&facts);
 - **Rows** are `Vec<Vec<Value>>` after `normalize_rows`, which accepts the
   list-of-lists snapshot form and the object-per-solution form `logic.query`
   returns.
+- **Form interaction is typed too.** A `Field` carries its dependency edges
+  (`inputs`), a `FieldTrigger { trigger_type: TriggerType, event: TriggerEvent }`
+  and a `FieldEmit` — all enums with the same total `parse` / `as_str` /
+  `Unknown` treatment as kinds. `field.fires_on(&TriggerEvent::Change)` answers
+  whether a field asks to fire on an event; honouring `TriggerType::Once` is
+  the host's job, since only the host knows what has already run.
 - **Identity** is `(namespace, id)`; duplicate registrations from a republish
   collapse to one.
 

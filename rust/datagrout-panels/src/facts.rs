@@ -43,7 +43,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::Value;
 
 use crate::model::{
-    prop_bool, Field, FieldEmit, FieldTrigger, Panel, PanelKind, PanelSource, Props,
+    prop_bool, Field, FieldEmit, FieldTrigger, Panel, PanelKind, PanelSource, Props, TriggerEvent,
+    TriggerType,
 };
 
 /// The goals this crate expects a caller to run against `_panels`. Provided so
@@ -144,8 +145,8 @@ impl Panel {
             trigger_by_field.insert(
                 f,
                 FieldTrigger {
-                    trigger_type: t,
-                    event: e,
+                    trigger_type: TriggerType::parse(&t),
+                    event: TriggerEvent::parse(&e),
                 },
             );
         }
@@ -155,7 +156,7 @@ impl Panel {
             let (Some(f), Some(e)) = (str_at(row, "FieldId"), str_at(row, "EmitType")) else {
                 continue;
             };
-            emit_by_field.insert(f, FieldEmit(e));
+            emit_by_field.insert(f, FieldEmit::parse(&e));
         }
 
         // Every panel/3 row, parts included, keyed by (namespace, id). A
@@ -525,6 +526,7 @@ mod tests {
             field_triggers: vec![
                 json!({"FieldId": "company", "Type": "on_event", "Event": "change"}),
             ],
+            field_emits: vec![json!({"FieldId": "company", "EmitType": "replacement"})],
             ..Default::default()
         };
 
@@ -533,9 +535,62 @@ mod tests {
         assert_eq!(panels.len(), 1);
         let form = &panels[0];
         assert_eq!(form.fields.len(), 1);
-        assert_eq!(form.fields[0].label(), "Company Name");
-        assert!(form.fields[0].required());
-        assert_eq!(form.fields[0].trigger.as_ref().unwrap().event, "change");
+        let field = &form.fields[0];
+        assert_eq!(field.label(), "Company Name");
+        assert!(field.required());
+
+        let trigger = field.trigger.as_ref().unwrap();
+        assert_eq!(trigger.trigger_type, TriggerType::OnEvent);
+        assert_eq!(trigger.event, TriggerEvent::Change);
+        assert!(field.fires_on(&TriggerEvent::Change));
+        assert!(!field.fires_on(&TriggerEvent::Submit));
+        assert_eq!(field.emit, Some(FieldEmit::Replacement));
+    }
+
+    #[test]
+    fn an_unknown_trigger_or_emit_is_carried_through_not_dropped() {
+        let facts = PanelFacts {
+            panels: vec![
+                panel("contact", "form", "app"),
+                panel("company", "text_input", "app"),
+            ],
+            props: vec![prop("company", "parent", json!("contact"))],
+            field_triggers: vec![
+                json!({"FieldId": "company", "Type": "on_quantum", "Event": "hover"}),
+            ],
+            field_emits: vec![json!({"FieldId": "company", "EmitType": "teleport"})],
+            ..Default::default()
+        };
+
+        let field = &Panel::all_from_facts(&facts)[0].fields[0];
+        let trigger = field.trigger.as_ref().unwrap();
+        // A vocabulary this crate predates must survive the round trip, the
+        // same way an unrecognized kind does.
+        assert_eq!(
+            trigger.trigger_type,
+            TriggerType::Unknown("on_quantum".into())
+        );
+        assert_eq!(trigger.trigger_type.as_str(), "on_quantum");
+        assert_eq!(trigger.event.as_str(), "hover");
+        assert_eq!(field.emit.as_ref().unwrap().as_str(), "teleport");
+    }
+
+    #[test]
+    fn a_field_with_no_trigger_fires_nothing_of_its_own() {
+        let facts = PanelFacts {
+            panels: vec![
+                panel("contact", "form", "app"),
+                panel("company", "text_input", "app"),
+            ],
+            props: vec![prop("company", "parent", json!("contact"))],
+            ..Default::default()
+        };
+
+        let field = &Panel::all_from_facts(&facts)[0].fields[0];
+        assert!(field.trigger.is_none());
+        // Its value travels with the form's submit instead.
+        assert!(!field.fires_on(&TriggerEvent::Submit));
+        assert!(!field.fires_on(&TriggerEvent::Change));
     }
 
     #[test]

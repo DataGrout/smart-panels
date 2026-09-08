@@ -100,7 +100,7 @@ pub mod model;
 pub use facts::{goals, normalize_rows, parse_curly_term, PanelFacts};
 pub use model::{
     prop_bool, prop_f64, prop_list, prop_str, Field, FieldEmit, FieldTrigger, Panel, PanelKind,
-    PanelSource, Props,
+    PanelSource, Props, TriggerEvent, TriggerType,
 };
 
 /// The system namespace every Smart Panel is published into.
