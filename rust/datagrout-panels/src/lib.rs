@@ -9,9 +9,27 @@
 //! panel_source(revenue_chart, my_app, 'monthly_revenue(Month, Amt)').
 //! ```
 //!
+//! `panel/3` carries the id, the kind and the owning namespace; `panel_prop/3`
+//! is one fact per config key; `panel_source/3` names a namespace and a
+//! **Prolog goal** whose solutions are the panel's rows — one row per solution,
+//! `Month` and `Amt` as the columns. A panel with fixed rows instead carries
+//! `panel_data/2`.
+//!
 //! Which makes a panel definition queryable, composable, and versioned like any
 //! other knowledge in the cell — and means a panel is *derived*, not stored: its
 //! `panel_source` goal is re-run against the rulebase every time it is read.
+//!
+//! # Why "smart"
+//!
+//! The goal can call *rules*, not just match stored facts, so a panel over
+//! `at_risk(Deal)` shows whatever satisfies that rule at read time: change the
+//! rule and every panel built on it changes, with no panel edited and no cache
+//! to invalidate. Because the definitions are facts, an agent can publish a
+//! dashboard as an outcome of its reasoning, and `logic.query` can audit what
+//! exists. Form fields carry dependency edges, triggers and emits, and a
+//! field's goal may invoke a tool and replace the field's own value — a small
+//! dataflow graph, whose dispatch belongs to the host rather than to a
+//! renderer.
 //!
 //! # This crate is the model, not a renderer
 //!

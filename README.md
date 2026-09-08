@@ -13,47 +13,142 @@ cargo add datagrout-panels-egui       # native GUI renderer
 cargo add datagrout-panels-mcp        # MCP Apps transpiler
 ```
 
-```prolog
-panel(pipeline_dashboard, dashboard, pipeline_pulse).
-panel_prop(pipeline_dashboard, title, 'Pipeline Pulse').
+## A panel is facts, not a blob
 
-panel(stage_mix, bar_chart, pipeline_pulse).
-panel_prop(stage_mix, parent, pipeline_dashboard).
-panel_source(stage_mix, pipeline_pulse, 'stage_count(Stage, N)').
-```
-
-A panel is not a JSON blob and not a template. It is knowledge in a logic cell:
-queryable, composable, versioned, and **derived** — its `panel_source` goal
-re-runs against the rulebase every time the panel is read.
-
-## Where panels come from
-
-**These crates render panels; they do not create them.** A Smart Panel is
-created on DataGrout by calling the gateway's `smart_panel.publish` tool, which
-compiles the definition into the facts above:
+You create a panel by calling the gateway's `smart_panel.publish` tool:
 
 ```json
 {
-  "id": "revenue_chart",
+  "id": "stage_mix",
   "kind": "bar_chart",
-  "namespace": "my-app",
-  "props": { "title": "Revenue by Month" },
-  "source": { "namespace": "my-app", "query": "monthly_revenue(Month, Amt)" }
+  "namespace": "pipeline_pulse",
+  "props": { "title": "Open Opportunities by Stage" },
+  "source": { "namespace": "pipeline_pulse", "query": "stage_count(Stage, N)" }
 }
 ```
 
-Those facts live in the `_panels` namespace of a **logic cell**, and a cell is
-scoped to one account *and one hub server* — so panels published through one
-server are not visible through another, and which panels you see depends on
-which server you connected to. Within `_panels`, every panel also declares an
-owning `namespace` (`my-app` above) that groups it with its siblings.
+DataGrout compiles that into Prolog facts in the `_panels` namespace of a logic
+cell — the same knowledge base the rest of your rules and data live in:
 
-Two composite shapes are worth knowing:
+```prolog
+panel(stage_mix, bar_chart, pipeline_pulse).
+panel_prop(stage_mix, title, 'Open Opportunities by Stage').
+panel_source(stage_mix, pipeline_pulse, 'stage_count(Stage, N)').
+```
 
-- a **dashboard** is published as `kind: "dashboard"`, and each child is
-  published separately with `props.parent` naming it;
-- a **form** is published as `kind: "form"` with a `fields` array, each field a
-  mini-panel that may declare `inputs`, a `trigger` and an `emit`.
+Read positionally:
+
+| fact | arguments |
+|---|---|
+| `panel/3` | panel id, kind, and the namespace that owns it |
+| `panel_prop/3` | panel id, a config key, its value — one fact per prop |
+| `panel_source/3` | panel id, the namespace to query, and a **Prolog goal** |
+| `panel_data/2` | panel id and a static row snapshot, for a panel with no query |
+
+`stage_count(Stage, N)` is an ordinary goal against that cell, so whatever it
+proves is what the chart draws: one row per solution, `Stage` and `N` as the
+columns. Nothing is copied into the panel, and the goal re-runs on every read.
+That is what makes a panel **derived** rather than stored — and queryable,
+composable and versioned like any other knowledge in the cell.
+
+You would not normally write these facts by hand; `smart_panel.publish` does
+it. But they are facts like any others, so `logic.query` can read them and
+rules can reason over them.
+
+### Composition is a fact too
+
+A container does not list its parts. Each part names its container in a
+`parent` prop, so a dashboard is one panel plus children pointing at it:
+
+```prolog
+panel(pipeline_dashboard, dashboard, pipeline_pulse).
+panel_prop(pipeline_dashboard, title, 'Pipeline Pulse').
+panel_prop(stage_mix, parent, pipeline_dashboard).
+```
+
+Published as `kind: "dashboard"` for the container and
+`"props": { "parent": "pipeline_dashboard" }` on each child. A form is
+`kind: "form"` with a `fields` array, where each field is itself a mini-panel
+that may declare `inputs` (sibling fields it depends on), a `trigger` and an
+`emit`.
+
+The parser inverts those edges: a resolved `Panel` carries its `children` or
+`fields`, and the parts do not appear at the top level.
+
+### Kinds and props are a fixed vocabulary
+
+Display kinds are `bar_chart`, `line_chart`, `pie_chart`, `scatter`, `table`,
+`metric`, `gauge`, `markdown`, `list`, `area_chart`, `heatmap`, `timeline`,
+`funnel`, `game`, `doc` and `dashboard`. Form kinds are `form`, `text_input`,
+`textarea`, `dropdown`, `select`, `checkbox`, `radio`, `button`,
+`number_input`, `date_input`, `file_upload` and `rich_text`. Props seen most
+often are `title`, `description`, `parent`, `slot`, `columns` (a **list** of
+table headers) and `published`.
+
+[`SPEC.md`](SPEC.md) is the full contract: every kind, every observed prop with
+its type, how rows normalize, and what a renderer must do with a kind it does
+not recognise — draw a labelled placeholder, never fail.
+
+## What makes them smart
+
+Storing UI as facts would be a curiosity on its own. Four properties are what
+the name is actually pointing at.
+
+**The rows are inferred, not fetched.** `panel_source` holds a goal, so it can
+call *rules*, not just match stored facts:
+
+```prolog
+at_risk(Deal) :-
+    stage(Deal, Stage), late_stage(Stage),
+    days_since_contact(Deal, Days), Days > 14.
+```
+
+A panel over `at_risk(Deal)` shows whatever satisfies that rule right now. The
+definition of "at risk" lives in the cell, so changing it changes every panel
+built on it, and no panel had to be edited.
+
+**It is current by construction.** The goal re-runs on every read, so a fact an
+agent asserted a second ago is already in the panel. There is no cache to
+invalidate, no build step, and no refresh path to get wrong.
+
+**An agent can build the UI.** Because a panel is just facts, anything holding
+`smart_panel.publish` can create or amend one as part of doing its work — which
+is why props carry `created_by_agent` provenance. A dashboard can be an outcome
+of reasoning rather than something a person laid out in advance.
+
+**A form is a small dataflow graph.** Fields declare what they depend on
+(`field_input`), when they fire (`field_trigger`), and what happens to their
+output (`field_emit`) — and a field's `panel_source` can invoke a tool, skill
+or workflow rather than query data. So a field can take another field's value,
+call something with it, and replace its own contents with the result:
+
+```json
+{
+  "id": "enriched_desc",
+  "kind": "textarea",
+  "props": { "label": "Description" },
+  "inputs": ["company_name"],
+  "trigger": "on_event",
+  "emit": "replacement",
+  "source": { "query": "enrich_company(CompanyName, Out)" }
+}
+```
+
+Driving that graph is the host's job: these crates surface the edges, triggers
+and emits, and hand interactions back to the caller rather than dispatching
+them (a renderer with a transport would be a renderer that can only work one
+way).
+
+And since the definitions are facts, they are queryable and auditable like
+anything else in the cell — `logic.query` can ask which panels exist, which are
+published, or which an agent created.
+
+## Where panels live, and how you read them
+
+A logic cell is scoped to one account **and one hub server**, so panels
+published through one server are not visible through another: which panels you
+see depends on which server you connected to. Within `_panels`, each panel's
+own `namespace` — `pipeline_pulse` above — groups it with its siblings.
 
 Anything that speaks MCP can publish: an agent handed the tool, your own code
 through an MCP client such as
@@ -62,8 +157,9 @@ page in the DataGrout web app. Reading them back is a single
 `smart_panel.list` call, and that response is exactly what
 `Panel::all_from_list` parses.
 
-**Neither the model nor the renderers have a transport.** You bring the MCP
-client; these crates turn what it returned into something on screen.
+**These crates render panels; they neither create nor fetch them, and have no
+transport.** You bring the MCP client; they turn what it returned into
+something on screen.
 
 ### Trying it without an account
 

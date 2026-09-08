@@ -14,6 +14,16 @@ Documentation only; no API or behaviour change.
   logic cell scoped to one account and one hub server, and read back with
   `smart_panel.list`. None of these crates create, fetch or transport panels,
   and 0.1.0 never said so.
+- One running example throughout: the `smart_panel.publish` call and the facts
+  it compiles to, with each fact's arguments named. 0.1.0 showed a facts block
+  and a JSON block that described different panels while claiming to be the
+  same one, and wrote the namespace as a Prolog atom in one and a hyphenated
+  string in the other.
+- **What makes a panel smart**, which 0.1.0 never said: the source is a goal
+  that can call rules, so rows are inferred at read time; the definitions are
+  facts, so an agent can publish one and `logic.query` can audit it; and a
+  form's fields are a dataflow graph of dependencies, triggers and emits whose
+  dispatch belongs to the host.
 - A copy-pasteable list response, verified as a doctest, so the renderers can
   be tried without a DataGrout account.
 - crates.io, docs.rs and CI badges.
