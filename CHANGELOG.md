@@ -7,7 +7,14 @@ other languages port.
 
 ## 0.1.1 — 2026-09-08
 
-Documentation only; no API or behaviour change.
+One additive API; otherwise documentation.
+
+### Added
+
+- `FormState::submission(&Panel)` (`datagrout-panels-egui`) — the
+  `{field_id => value}` map a DataGrout form submit expects, with untouched
+  fields contributing their declared defaults and buttons excluded. A host had
+  to know that `FormState` keys by bare field id and assemble this itself.
 
 - Each crate explains **where panels come from**: they are created on DataGrout
   with `smart_panel.publish`, stored as facts in the `_panels` namespace of a

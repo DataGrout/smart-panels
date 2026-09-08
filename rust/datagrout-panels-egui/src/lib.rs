@@ -66,10 +66,54 @@ pub enum PanelAction {
 
 /// Mutable per-viewer form state. Kept by the caller across frames — immediate
 /// mode means the widgets themselves hold nothing.
+///
+/// Both maps are keyed by **field id**. That is safe because a field is itself
+/// a `panel/3` registration in the fact schema, so ids are unique within a
+/// namespace; one `FormState` shared across panels from *different* namespaces
+/// could collide, so give those their own.
 #[derive(Debug, Default, Clone)]
 pub struct FormState {
     pub values: std::collections::BTreeMap<String, String>,
     pub checks: std::collections::BTreeMap<String, bool>,
+}
+
+impl FormState {
+    /// The values to submit for `panel`, keyed by field id.
+    ///
+    /// This is the `{field_id => value}` map a DataGrout form submit expects.
+    /// On submit the gateway matches those ids — by normalized name — either to
+    /// the `+` inputs of a rule published with `reactor.expose` or to the
+    /// Prolog variables in the panel's own `panel_source` goal, then evaluates
+    /// it in the cell. So a host's whole job is to collect this and send it.
+    ///
+    /// Every non-button field appears. A field the viewer never touched
+    /// contributes its declared default (or an empty string) rather than being
+    /// omitted, so a server-side required-field check sees the full form.
+    /// Buttons carry no value; the one that fired arrives in
+    /// [`PanelAction::Submit`] instead.
+    pub fn submission(&self, panel: &Panel) -> std::collections::BTreeMap<String, String> {
+        panel
+            .fields
+            .iter()
+            .filter(|field| field.kind != PanelKind::Button)
+            .map(|field| {
+                let value = match field.kind {
+                    PanelKind::Checkbox => self
+                        .checks
+                        .get(&field.id)
+                        .copied()
+                        .unwrap_or_else(|| field.default_value().as_deref() == Some("true"))
+                        .to_string(),
+                    _ => self
+                        .values
+                        .get(&field.id)
+                        .cloned()
+                        .unwrap_or_else(|| field.default_value().unwrap_or_default()),
+                };
+                (field.id.clone(), value)
+            })
+            .collect()
+    }
 }
 
 /// Render a panel. Returns any actions the viewer triggered this frame.
@@ -658,6 +702,47 @@ mod tests {
         });
         // A declared default seeds the field's state on first render.
         assert_eq!(state.values.get("name").map(String::as_str), Some("Ada"));
+    }
+
+    #[test]
+    fn a_submission_carries_every_field_a_host_must_send() {
+        let facts = PanelFacts {
+            panels: vec![
+                json!({"Id": "f", "Kind": "form", "Namespace": "ns"}),
+                json!({"Id": "company_name", "Kind": "text_input", "Namespace": "ns"}),
+                json!({"Id": "notes", "Kind": "textarea", "Namespace": "ns"}),
+                json!({"Id": "urgent", "Kind": "checkbox", "Namespace": "ns"}),
+                json!({"Id": "submit_it", "Kind": "button", "Namespace": "ns"}),
+            ],
+            props: vec![
+                json!({"Id": "company_name", "Key": "parent", "Value": "f"}),
+                json!({"Id": "company_name", "Key": "default", "Value": "Acme"}),
+                json!({"Id": "notes", "Key": "parent", "Value": "f"}),
+                json!({"Id": "urgent", "Key": "parent", "Value": "f"}),
+                json!({"Id": "submit_it", "Key": "parent", "Value": "f"}),
+            ],
+            ..Default::default()
+        };
+        let form = Panel::all_from_facts(&facts).remove(0);
+
+        let mut state = FormState::default();
+        state.values.insert("notes".into(), "ship tuesday".into());
+        state.checks.insert("urgent".into(), true);
+
+        let submission = state.submission(&form);
+        // The button is not a value, and the untouched field falls back to its
+        // declared default rather than vanishing.
+        assert_eq!(
+            submission,
+            [
+                ("company_name", "Acme"),
+                ("notes", "ship tuesday"),
+                ("urgent", "true"),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+        );
     }
 
     #[test]

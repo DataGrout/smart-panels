@@ -48,6 +48,9 @@ jobs:
         run: |
           # The pattern itself lives in this file, so the workflow directory is
           # excluded from its own scan.
-          if grep -rniE "lib/data_grout|/Users/|manifold|agentsmith|elastic-2|governor|warden" --include="*.rs" --include="*.md" --include="*.toml" --exclude-dir=.github --exclude-dir=target . ; then
+          # Unreleased projects and licensing strategy only. Released DataGrout
+          # products (reactor apps, smart panels, governor, warden) are fair
+          # game here and a deny-list must not block documenting them.
+          if grep -rniE "lib/data_grout|/Users/|manifold|agentsmith|elastic-2" --include="*.rs" --include="*.md" --include="*.toml" --exclude-dir=.github --exclude-dir=target . ; then
             echo "internal path reference found"; exit 1
           fi

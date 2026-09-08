@@ -76,14 +76,22 @@ let mut state = FormState::default();   // keep this across frames
 
 for action in render_panel_with_state(ui, &panel, &mut state) {
     match action {
-        PanelAction::Submit { panel_id, field_id } => { /* run the field's goal */ }
-        PanelAction::ValueChanged { panel_id, field_id, value } => { /* cascade */ }
+        PanelAction::Submit { .. } => {
+            // Exactly the {field_id => value} map a form submit expects.
+            let values = state.submission(&panel);
+            // ... send it with your MCP client
+        }
+        PanelAction::ValueChanged { field_id, value, .. } => { /* note it */ }
     }
 }
 ```
 
-Actions are *returned*, not executed. Dispatching a submit means running a
-goal on a gateway, which is the host's decision and the host's transport.
+Actions are *returned*, not executed, and `FormState::submission` builds the
+payload for you. What happens next is not client-side logic: DataGrout binds
+those field ids — by normalized name — to a rule's `+` inputs or to the Prolog
+variables in the panel's own `panel_source` goal, and evaluates it inside the
+cell, where a rule body may itself call tools. So a host chooses *where* to
+submit; it does not implement the cascade.
 
 ## Testing without a window
 
