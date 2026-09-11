@@ -5,6 +5,23 @@ All notable changes to `datagrout-panels` are recorded here. The project follows
 the compatibility surface, and the Rust crates are the reference implementation
 other languages port.
 
+## 0.2.1 — 2026-09-11
+
+Two readers disagreed with the server about the wire.
+
+### Fixed
+
+- `Field::default_value` read `default`; the server writes and reads
+  `default_value`. Every published default was dropped, so
+  `FormState::submission` sent an empty string where the server would have
+  sent the default. `default_value` is read first, `default` as a fallback.
+- `prop_list` on a string value split on commas and kept the brackets, so the
+  `columns` prop as it comes off the raw-facts path — the stored term's text,
+  `"[Name, StageName, Amount]"` — yielded `["[Name", …, "Amount]"]` and a table
+  fell back to positional headers. Brackets and quotes are stripped, as the
+  server's own renderer does.
+- SPEC §4 documents both wire forms.
+
 ## 0.2.0 — 2026-09-08
 
 Types the form-interaction vocabularies, adds a submission helper, and says

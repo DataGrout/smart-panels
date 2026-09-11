@@ -150,7 +150,7 @@ impl PanelKind {
     }
 
     /// Kinds whose `panel_source` is a live DATA query rather than a submit
-    /// goal. Matches DataGrout's `PanelData.data_kinds/0` — the distinction
+    /// goal. Matches the server's set of data kinds — the distinction
     /// decides whether a source is safe to evaluate on render.
     pub fn is_data_kind(&self) -> bool {
         matches!(
@@ -375,7 +375,7 @@ pub type Props = BTreeMap<String, Value>;
 
 /// Read a prop as text, coercing scalars the way the server does.
 ///
-/// Mirrors `PanelData.prop_value/1`: strings pass through, numbers and
+/// Mirrors the server's coercion: strings pass through, numbers and
 /// booleans become their text form, lists and maps are not text and yield
 /// `None` — a renderer that wants a list asks [`prop_list`].
 pub fn prop_str(props: &Props, key: &str) -> Option<String> {
@@ -389,8 +389,12 @@ pub fn prop_str(props: &Props, key: &str) -> Option<String> {
 
 /// Read a prop as a list of strings.
 ///
-/// Accepts a JSON list (the wire form for `columns`) and, tolerantly, a
-/// comma-separated string.
+/// Accepts a JSON list and, tolerantly, a comma-separated string. The string
+/// form is not only tolerance: a list prop that has crossed the cell comes
+/// back as the text of the stored Prolog term — `"[Name, StageName, Amount]"`,
+/// with brackets, and quoted when an item has spaces — so the raw-facts path
+/// hands renderers that form for every `columns`. Brackets and quotes are
+/// stripped, exactly as the server's own renderer does.
 pub fn prop_list(props: &Props, key: &str) -> Vec<String> {
     match props.get(key) {
         Some(Value::Array(items)) => items
@@ -402,12 +406,17 @@ pub fn prop_list(props: &Props, key: &str) -> Vec<String> {
                 _ => None,
             })
             .collect(),
-        Some(Value::String(s)) => s
-            .split(',')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(str::to_string)
-            .collect(),
+        Some(Value::String(s)) => {
+            let inner = s.trim();
+            let inner = inner.strip_prefix('[').unwrap_or(inner);
+            let inner = inner.strip_suffix(']').unwrap_or(inner);
+            inner
+                .split(',')
+                .map(|item| item.trim().trim_matches(|c| c == '\'' || c == '"').trim())
+                .filter(|item| !item.is_empty())
+                .map(str::to_string)
+                .collect()
+        }
         _ => Vec::new(),
     }
 }
@@ -463,8 +472,14 @@ impl Field {
     }
 
     /// Default value, if the field declares one.
+    ///
+    /// The server writes and reads `default_value`; `default` is accepted
+    /// as well for panels
+    /// published by older clients. Reading only `default` meant every
+    /// published default was dropped and a submission sent an empty string
+    /// where the server would have sent the default (2026-09-11).
     pub fn default_value(&self) -> Option<String> {
-        prop_str(&self.props, "default")
+        prop_str(&self.props, "default_value").or_else(|| prop_str(&self.props, "default"))
     }
 
     /// Whether this field asks to fire its goal on `event`.
@@ -632,6 +647,60 @@ mod tests {
         assert_eq!(prop_list(&p, "columns"), vec!["Invoice", "Days", "3"]);
         assert_eq!(prop_list(&p, "legacy"), vec!["a", "b", "c"]);
         assert!(prop_list(&p, "missing").is_empty());
+    }
+
+    // The stored Prolog term's text is what the raw-facts path yields for a
+    // list prop; it used to come back as ["[Name", "StageName", "Amount]"].
+    #[test]
+    fn prop_list_strips_the_stored_term_brackets_and_quotes() {
+        let p = props(&[
+            ("columns", json!("[Name, StageName, Amount, CloseDate]")),
+            ("quoted", json!("['Lead Source', 'Open Opps', Amount]")),
+            ("empty", json!("[]")),
+        ]);
+        assert_eq!(
+            prop_list(&p, "columns"),
+            vec!["Name", "StageName", "Amount", "CloseDate"]
+        );
+        assert_eq!(
+            prop_list(&p, "quoted"),
+            vec!["Lead Source", "Open Opps", "Amount"]
+        );
+        assert!(prop_list(&p, "empty").is_empty());
+    }
+
+    #[test]
+    fn a_field_default_is_read_from_default_value_like_the_server_writes_it() {
+        let field = |pairs: &[(&str, Value)]| Field {
+            id: "f".into(),
+            kind: PanelKind::TextInput,
+            props: props(pairs),
+            inputs: vec![],
+            trigger: None,
+            emit: None,
+            source: None,
+        };
+        assert_eq!(
+            field(&[("default_value", json!("Acme"))])
+                .default_value()
+                .as_deref(),
+            Some("Acme")
+        );
+        // older clients wrote `default`
+        assert_eq!(
+            field(&[("default", json!("Beta"))])
+                .default_value()
+                .as_deref(),
+            Some("Beta")
+        );
+        // the server's key wins when both are present
+        assert_eq!(
+            field(&[("default", json!("old")), ("default_value", json!("new"))])
+                .default_value()
+                .as_deref(),
+            Some("new")
+        );
+        assert_eq!(field(&[]).default_value(), None);
     }
 
     #[test]

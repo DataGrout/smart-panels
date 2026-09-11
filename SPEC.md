@@ -110,7 +110,7 @@ Prop values are **typed**, not strings. Observed on the wire:
 | `description` | string | |
 | `published` | **bool** or `"true"`/`"false"` | see below |
 | `parent` | string | container id (§3) |
-| `columns` | **list of strings** | table column headers |
+| `columns` | **list of strings** | table column headers; on the raw-facts path the value is the stored term's text, `"[Name, Amount]"`, and readers strip the brackets and quotes |
 | `slot` | string | layout hint; server default `"main"` |
 | `created_by_agent`, `created_by_agent_name` | string | provenance |
 | `doc_ref` | string | `doc_<hex>` reference for `doc` panels |
@@ -118,6 +118,7 @@ Prop values are **typed**, not strings. Observed on the wire:
 | `store_collection`, `site` | string | where a form's submissions persist |
 | `assert_entity` | string | forms that mint an entity per submission |
 | `password_hash` | string | gate; never render it |
+| `default_value` | string | a form field's initial value (the server's key; `default` is read as a fallback) |
 
 Implementations keep the value as sent and coerce on read:
 

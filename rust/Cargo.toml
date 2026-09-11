@@ -7,7 +7,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.82"
 authors = ["DataGrout"]
@@ -16,7 +16,7 @@ repository = "https://github.com/DataGrout/smart-panels"
 homepage = "https://datagrout.ai"
 
 [workspace.dependencies]
-datagrout-panels = { version = "0.2.0", path = "datagrout-panels" }
+datagrout-panels = { version = "0.2.1", path = "datagrout-panels" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
