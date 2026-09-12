@@ -304,9 +304,20 @@ default, and emits no callback path for display-only panels.
 datagrout-panels/
 ├── SPEC.md          the fact schema + renderer contract (portable)
 ├── CHANGELOG.md
+├── publish.sh       releases whichever crates crates.io lacks at the workspace version
 ├── rust/            reference implementation (three crates)
 └── typescript/      (planned)
 ```
+
+## Releasing
+
+The three crates share one version, set in `rust/Cargo.toml` under
+`[workspace.package]`, and the renderer and transpiler depend on the model at
+exactly that version. A release commit bumps it and adds a dated entry to
+`CHANGELOG.md`; `./publish.sh` then publishes every crate crates.io does not
+yet have at that version, model first, and tags `v<version>`. It is safe to
+re-run: crates already up are skipped. `./publish.sh --dry-run` packages and
+verifies without uploading.
 
 ## License
 
